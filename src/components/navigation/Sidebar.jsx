@@ -14,9 +14,8 @@ import {
   Settings,
   AlertTriangle,
   MessageSquare,
-  Database,
-  UserCheck,
   HelpCircle,
+  UserCheck,
 } from "lucide-react";
 import usePermission from "../../hooks/usePermission";
 import useAuthStore from "../../store/authStore";
@@ -49,9 +48,33 @@ const NavItem = ({ to, icon: Icon, label, active, children }) => {
   );
 };
 
+// Mini nav item when sidebar is collapsed
+const MiniNavItem = ({ to, icon: Icon, label }) => {
+  return (
+    <div className="px-2 py-1">
+      <NavLink
+        to={to}
+        className={({ isActive }) =>
+          `${
+            isActive
+              ? "bg-primary-800 text-white"
+              : "text-primary-100 hover:bg-primary-700"
+          } group flex flex-col items-center py-2 px-1 text-xs font-medium rounded-md`
+        }
+        title={label}
+      >
+        <Icon className="h-5 w-5 text-primary-300 mb-1" aria-hidden="true" />
+        <span className="text-[9px] overflow-hidden text-center w-full truncate">
+          {label}
+        </span>
+      </NavLink>
+    </div>
+  );
+};
+
 // Sidebar component
-const Sidebar = ({ isOpen, setIsOpen }) => {
-  const { can, hasRole } = usePermission();
+const Sidebar = ({ isOpen, setIsOpen, isExpanded = true }) => {
+  const { canDo, hasRole } = usePermission();
   const { user } = useAuthStore();
   const [modules, setModules] = useState([]);
 
@@ -178,12 +201,12 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         if (module.id === "dashboard") return true;
 
         // Check if user has permission for this module
-        return !module.permission || can(module.permission);
+        return !module.permission || canDo(module.permission);
       });
     }
 
     setModules(visibleModules);
-  }, [can, hasRole, user]);
+  }, [canDo, hasRole, user]);
 
   return (
     <>
@@ -289,7 +312,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                     >
                       {module.children?.map((child) =>
                         hasRole("national_commissioner") ||
-                        can(child.permission) ? (
+                        canDo(child.permission) ? (
                           <NavLink
                             key={child.id}
                             to={child.path}
@@ -314,20 +337,101 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         </Dialog>
       </Transition.Root>
 
-      {/* Desktop sidebar */}
-      <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0">
-        <div className="flex-1 flex flex-col min-h-0 bg-primary-700">
-          <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
-            <div className="flex items-center flex-shrink-0 px-4">
-              <img className="h-8 w-auto" src="/logo.png" alt="NPIMS Logo" />
-              <span className="ml-2 text-white font-semibold text-lg">
-                NPIMS
-              </span>
+      {/* Desktop sidebar - Expanded version */}
+      {isExpanded ? (
+        <div className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 transition-all duration-300 ease-in-out">
+          <div className="flex-1 flex flex-col min-h-0 bg-primary-700">
+            <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+              <div className="flex items-center flex-shrink-0 px-4">
+                <img className="h-8 w-auto" src="/logo.png" alt="NPIMS Logo" />
+                <span className="ml-2 text-white font-semibold text-lg">
+                  NPIMS
+                </span>
+              </div>
+
+              {/* User info */}
+              <div className="px-4 py-2 mt-2 border-b border-primary-800">
+                <div className="flex items-center">
+                  <div className="flex-shrink-0">
+                    {user?.avatar ? (
+                      <img
+                        src={user.avatar}
+                        className="h-8 w-8 rounded-full"
+                        alt={user.name}
+                      />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center text-white font-medium">
+                        {user?.name?.charAt(0) || "U"}
+                      </div>
+                    )}
+                  </div>
+                  <div className="ml-2 overflow-hidden">
+                    <p className="text-sm font-medium text-white truncate">
+                      {user?.name || "User"}
+                    </p>
+                    <p className="text-xs text-primary-300 truncate">
+                      {user?.role
+                        ?.replace("_", " ")
+                        ?.replace(/\b\w/g, (l) => l.toUpperCase()) || "Role"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <nav className="mt-5 flex-1 px-2 space-y-1">
+                {modules.map((module) => (
+                  <NavItem
+                    key={module.id}
+                    to={module.path}
+                    icon={module.icon}
+                    label={module.label}
+                  >
+                    {module.children?.map((child) =>
+                      hasRole("national_commissioner") ||
+                      canDo(child.permission) ? (
+                        <NavLink
+                          key={child.id}
+                          to={child.path}
+                          className={({ isActive }) =>
+                            `${
+                              isActive
+                                ? "bg-primary-800 text-white"
+                                : "text-primary-100 hover:bg-primary-700"
+                            } group flex items-center px-2 py-2 text-xs font-medium rounded-md`
+                          }
+                        >
+                          {child.label}
+                        </NavLink>
+                      ) : null
+                    )}
+                  </NavItem>
+                ))}
+              </nav>
             </div>
 
-            {/* User info */}
-            <div className="px-4 py-2 mt-2 border-b border-primary-800">
-              <div className="flex items-center">
+            {/* Help button */}
+            <div className="flex-shrink-0 flex border-t border-primary-800 p-4">
+              <Link
+                to="/help"
+                className="flex-shrink-0 w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md text-primary-100 hover:bg-primary-700"
+              >
+                <HelpCircle className="mr-3 flex-shrink-0 h-5 w-5 text-primary-300" />
+                Help & Support
+              </Link>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Desktop sidebar - Collapsed/Mini version */
+        <div className="hidden md:flex md:w-16 md:flex-col md:fixed md:inset-y-0 transition-all duration-300 ease-in-out">
+          <div className="flex-1 flex flex-col min-h-0 bg-primary-700">
+            <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
+              <div className="flex items-center justify-center flex-shrink-0 px-2">
+                <img className="h-8 w-8" src="/logo.png" alt="NPIMS Logo" />
+              </div>
+
+              {/* User info */}
+              <div className="py-2 mt-2 flex justify-center border-b border-primary-800">
                 <div className="flex-shrink-0">
                   {user?.avatar ? (
                     <img
@@ -341,62 +445,34 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                     </div>
                   )}
                 </div>
-                <div className="ml-2 overflow-hidden">
-                  <p className="text-sm font-medium text-white truncate">
-                    {user?.name || "User"}
-                  </p>
-                  <p className="text-xs text-primary-300 truncate">
-                    {user?.role
-                      ?.replace("_", " ")
-                      ?.replace(/\b\w/g, (l) => l.toUpperCase()) || "Role"}
-                  </p>
-                </div>
               </div>
+
+              <nav className="mt-5 flex-1 flex flex-col items-center space-y-1 px-2">
+                {modules.map((module) => (
+                  <MiniNavItem
+                    key={module.id}
+                    to={module.path}
+                    icon={module.icon}
+                    label={module.label}
+                  />
+                ))}
+              </nav>
             </div>
 
-            <nav className="mt-5 flex-1 px-2 space-y-1">
-              {modules.map((module) => (
-                <NavItem
-                  key={module.id}
-                  to={module.path}
-                  icon={module.icon}
-                  label={module.label}
-                >
-                  {module.children?.map((child) =>
-                    hasRole("national_commissioner") ||
-                    can(child.permission) ? (
-                      <NavLink
-                        key={child.id}
-                        to={child.path}
-                        className={({ isActive }) =>
-                          `${
-                            isActive
-                              ? "bg-primary-800 text-white"
-                              : "text-primary-100 hover:bg-primary-700"
-                          } group flex items-center px-2 py-2 text-xs font-medium rounded-md`
-                        }
-                      >
-                        {child.label}
-                      </NavLink>
-                    ) : null
-                  )}
-                </NavItem>
-              ))}
-            </nav>
-          </div>
-
-          {/* Help button */}
-          <div className="flex-shrink-0 flex border-t border-primary-800 p-4">
-            <Link
-              to="/help"
-              className="flex-shrink-0 w-full group flex items-center px-2 py-2 text-sm font-medium rounded-md text-primary-100 hover:bg-primary-700"
-            >
-              <HelpCircle className="mr-3 flex-shrink-0 h-5 w-5 text-primary-300" />
-              Help & Support
-            </Link>
+            {/* Help button */}
+            <div className="flex-shrink-0 flex justify-center border-t border-primary-800 p-2">
+              <Link
+                to="/help"
+                className="flex flex-col items-center px-1 py-2 text-xs font-medium rounded-md text-primary-100 hover:bg-primary-700"
+                title="Help & Support"
+              >
+                <HelpCircle className="h-5 w-5 text-primary-300 mb-1" />
+                <span className="text-[9px]">Help</span>
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </>
   );
 };
